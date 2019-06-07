@@ -28,7 +28,7 @@ public class SuperBlock {
 
         if(numBlocks != totalBlocks || numInodes <= 0 || freeList < 2){
             numBlocks = totalBlocks;
-            format(numInodes);
+            format(INODE_BLOCKS);
             SysLib.cerr("formatting...");
         }
     }
