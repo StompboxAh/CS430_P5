@@ -15,6 +15,8 @@ public class SuperBlock {
 
     public SuperBlock(int totalBlocks){
 
+        byte[] superBlock = new byte[BLOCK_SIZE];
+
     }
 
 }
