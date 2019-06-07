@@ -158,7 +158,14 @@ public class Kernel
                                 System.out.println( "threaOS: caused read errors" );
                                 return ERROR;
                         }
-                        // return FileSystem.read( param, byte args[] );
+
+                        // added in P5
+                        if ((myTcb = scheduler.getMyTcb()) != null) {
+                            FileTableEntry ftEnt = myTcb.getFtEnt(param);
+                            if (ftEnt != null) {
+                                return fs.read(ftEnt, (byte[]) args);
+                            }
+                        }
                         return ERROR;
                     case WRITE:
                         switch ( param ) {
@@ -172,7 +179,14 @@ public class Kernel
                                 System.err.print( (String)args );
                                 break;
                         }
-                        return OK;
+
+                        // added in P5
+                        if ((myTcb = scheduler.getMyTcb()) != null) {
+                            FileTableEntry ftEnt = myTcb.getFtEnt(param);
+                            if (ftEnt != null)
+                                return fs.write(ftEnt, (byte[])args);
+                        }
+                        return ERROR;
                     case CREAD:   // to be implemented in assignment 4
                         return cache.read( param, ( byte[] )args ) ? OK : ERROR;
                     case CWRITE:  // to be implemented in assignment 4
@@ -183,14 +197,14 @@ public class Kernel
                     case CFLUSH:  // to be implemented in assignment 4
                         cache.flush( );
                         return OK;
-                    case OPEN:    // to be implemented in project
+                    case OPEN:    // added in P5
                         if ((myTcb = scheduler.getMyTcb()) != null) {
                             String[] s = (String[]) args;
                             return myTcb.getFd(fs.open(s[0], s[1]));
                         }
                         else
                             return ERROR;
-                    case CLOSE:   // to be implemented in project
+                    case CLOSE:   // added in P5
                         if ((myTcb = scheduler.getMyTcb()) != null) {
                             FileTableEntry ftEnt = myTcb.getFtEnt(param);
                             if (ftEnt != null && fs.close(ftEnt)) {
@@ -202,14 +216,14 @@ public class Kernel
                             return ERROR;
                         }
                         return ERROR;
-                    case SIZE:    // to be implemented in project
+                    case SIZE:    // added in P5
                         if ((myTcb = scheduler.getMyTcb()) != null) {
                             FileTableEntry ftEnt = myTcb.getFtEnt(param);
                             if (ftEnt != null)
                                 return fs.fsize(ftEnt);
                         }
                         return ERROR;
-                    case SEEK:    // to be implemented in project
+                    case SEEK:    // added in P5
                         if ((myTcb = scheduler.getMyTcb()) != null) {
                             int[] seekArgs = (int[]) args;
                             FileTableEntry ftEnt = myTcb.getFtEnt(param);
@@ -217,9 +231,9 @@ public class Kernel
                                 return fs.seek(ftEnt, seekArgs[0], seekArgs[1]);
                         }
                         return ERROR;
-                    case FORMAT:  // to be implemented in project
+                    case FORMAT:  // added in P5
                         return (fs.format(param) == true) ? OK : ERROR;
-                    case DELETE:  // to be implemented in project
+                    case DELETE:  // added in P5
                         return (fs.delete((String) args) == true) ? OK : ERROR;
                 }
                 return ERROR;
