@@ -32,7 +32,7 @@ public class FileSystem {
         close(dirEntry);
     }
 
-    public void close(FileTableEntry dirEntry) {
+    public boolean close(FileTableEntry dirEntry) {
         synchronized (dirEntry){
             dirEntry.count--;
             if(dirEntry.count > 0) return true;
@@ -49,6 +49,49 @@ public class FileSystem {
     int fsize(FileTableEntry ftEntry){
         synchronized (ftEntry){
             return ftEntry.inode.length;
+        }
+    }
+
+    public void sync(){
+        FileTableEntry fileTableEntry = open("/", "w");
+        byte[] dirData = directory.directory2bytes();
+        write(fileTableEntry, dirData);
+        close(fileTableEntry);
+        superBlock.sync();
+    }
+
+    public boolean format(int data){
+        superBlock.format(data);
+        directory = new Directory(superBlock.inodeBlocks);
+        fileTable = new FileTable(directory);
+        return true;
+    }
+
+    public int seek(FileTableEntry ftEntry, int position, int offset){
+        synchronized (ftEntry){
+            switch (position){
+                case SEEK_SET:
+                    if(offset <= fsize(ftEntry) && offset >0){
+                        ftEntry.seekPtr = offset;
+                        break;
+                    }
+                    return -1;
+
+
+                case SEEK_CUR:
+                    if(ftEntry.seekPtr + offset <= fsize(ftEntry) && ftEntry + offset > 0){
+                        ftEntry.seekPtr += offset;
+                        break;
+                    }
+                    return -1;
+
+                case SEEK_END:
+                    if(fsize(ftEntry) + offset > fsize(ftEntry) || fsize(ftEntry) + offset < 0){
+                        return -1;
+                    }
+                    ftEntry.seekPtr = fsize(ftEntry) + offset;
+            }
+            return ftEntry.seekPtr;
         }
     }
 
