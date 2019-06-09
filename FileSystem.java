@@ -66,17 +66,18 @@ public class FileSystem {
     }
 
     public boolean format(int data){
+        while (!fileTable.fempty()) {} //todo do we need this?
         superBlock.format(data);
         directory = new Directory(superBlock.inodeBlocks);
         fileTable = new FileTable(directory);
         return true;
     }
 
-    public int seek(FileTableEntry ftEntry, int position, int offset){
+    public int seek(FileTableEntry ftEntry, int offset, int position){
         synchronized (ftEntry){
             switch (position){
                 case SEEK_SET:
-                    if(offset <= fsize(ftEntry) && offset >0){
+                    if(offset >= 0 && offset <= fsize(ftEntry)){
                         ftEntry.seekPtr = offset;
                         break;
                     }
@@ -84,14 +85,16 @@ public class FileSystem {
 
 
                 case SEEK_CUR:
-                    if(ftEntry.seekPtr + offset <= fsize(ftEntry) && ftEntry.seekPtr + offset > 0){
+                    if (ftEntry.seekPtr + offset >= 0 &&
+                            ftEntry.seekPtr + offset <= fsize(ftEntry)) {
                         ftEntry.seekPtr += offset;
                         break;
                     }
                     return -1;
 
                 case SEEK_END:
-                    if(fsize(ftEntry) + offset > fsize(ftEntry) || fsize(ftEntry) + offset < 0){
+                    if (fsize(ftEntry) + offset < 0 ||
+                            fsize(ftEntry) + offset > fsize(ftEntry)) {
                         return -1;
                     }
                     ftEntry.seekPtr = fsize(ftEntry) + offset;
@@ -108,20 +111,19 @@ public class FileSystem {
             int trackData = 0;
             int trackError = -1;
             int blockSize = Disk.blockSize;
-            int remainingRead = 0;
 
             synchronized (ftEntry) {
                 while (bufferLength > 0 && ftEntry.seekPtr < fsize(ftEntry)) {
-                    int currentBlock = ftEntry.inode.findBlock(ftEntry.seekPtr);
+                    int currentBlock = ftEntry.inode.findTargetBlock(ftEntry.seekPtr);
                     if (currentBlock == trackError) break;
 
                     byte[] blockData = new byte[blockSize];
                     SysLib.rawread(currentBlock, blockData);
                     int offset = ftEntry.seekPtr % blockSize;
-                    int remainingBlocks = blockSize - remainingRead;
+                    int remainingBlocks = blockSize - offset;
                     int remainingFile = fsize(ftEntry) - ftEntry.seekPtr;
 
-                    remainingRead = Math.min(Math.min(remainingBlocks, bufferLength), remainingFile);
+                    int remainingRead = Math.min(Math.min(remainingBlocks, bufferLength), remainingFile);
                     System.arraycopy(blockData, offset, buffer, trackData, remainingRead);
                     ftEntry.seekPtr += remainingRead;
                     trackData += remainingRead;
@@ -147,10 +149,10 @@ public class FileSystem {
             int offset = 0;
 
             while(bufferLength > 0){
-                int currentBlock = ftEntry.inode.findBlock(ftEntry.seekPtr);
+                int currentBlock = ftEntry.inode.findTargetBlock(ftEntry.seekPtr);
                 if(currentBlock == -1){
-                    short newBLock = (short)superBlock.getFreeBlock();
-                    int index = ftEntry.inode.setTargetBlock(ftEntry.seekPtr, newBLock);
+                    short newBlock = (short)superBlock.getFreeBlock();
+                    int index = ftEntry.inode.registerTargetBlock(ftEntry.seekPtr, newBlock);
 
                     if(index == -3){
 
@@ -158,28 +160,36 @@ public class FileSystem {
                         if(!ftEntry.inode.registerIndexBlock(freeBlock)){
                             return -1;
                         }
-                        else if(ftEntry.inode.setTargetBlock(ftEntry.seekPtr, newBLock) != 0){
+
+                        if(ftEntry.inode.registerTargetBlock(ftEntry.seekPtr, newBlock) != 0){
                             return -1;
                         }
                     }
-                    else if(index == -2 || index == -1){
+
+                    if(index == -2 || index == -1){
                         return -1;
                     }
 
-                    currentBlock = newBLock;
+                    currentBlock = newBlock;
                 }
 
-                byte[] blockData = new byte[Disk.blockSize];
-                SysLib.rawread(currentBlock, blockData);
-                int newSeekPtr = ftEntry.seekPtr % Disk.blockSize;
-                int remaining = Disk.blockSize - newSeekPtr;
+                byte[] blockData = new byte[blockSize];
+                if (SysLib.rawread(currentBlock, blockData) == -1){
+                    System.exit(2);
+                }
+
+                int newSeekPtr = ftEntry.seekPtr % blockSize;
+                int remaining = blockSize - newSeekPtr;
                 int position = Math.min(remaining, bufferLength);
                 System.arraycopy(buffer, offset, blockData, newSeekPtr, position);
+                SysLib.rawwrite(currentBlock, blockData);
                 ftEntry.seekPtr += position;
                 bufferLength -= position;
+                offset += position;
 
-                ftEntry.inode.length = (ftEntry.seekPtr > ftEntry.inode.length) ? ftEntry.seekPtr : ftEntry.inode.length;
-
+                if (ftEntry.seekPtr > ftEntry.inode.length){
+                    ftEntry.inode.length = ftEntry.seekPtr;
+                }
             }
             ftEntry.inode.toDisk(ftEntry.iNumber);
             return offset;
@@ -198,11 +208,11 @@ public class FileSystem {
         if(ftEntry.inode.count != 1)
             return false;
 
-        byte[] data = new byte[Disk.blockSize];
+        byte[] data = ftEntry.inode.unregisterIndexBlock();
         if(data != null){
             int offset = 0;
-            short blockNum = SysLib.bytes2short(data, offset);
-            while(blockNum != -1){
+            short blockNum;
+            while((blockNum = SysLib.bytes2short(data, offset)) != -1){
                 superBlock.returnBlock(blockNum);
             }
         }
@@ -211,7 +221,6 @@ public class FileSystem {
         int inodeDirectSize = 11;
 
         while(true){
-            Inode node = ftEntry.inode;
             if(blockID >= inodeDirectSize){
                 ftEntry.inode.toDisk(ftEntry.iNumber);
                 return true;
@@ -225,3 +234,5 @@ public class FileSystem {
         }
     }
 }
+
+
