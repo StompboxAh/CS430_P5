@@ -43,7 +43,12 @@ public class FileSystem {
     public FileTableEntry open(String fileName, String mode) {
         FileTableEntry fileTableEntry = fileTable.falloc(fileName, mode);
 
-        return (mode == "w") ? fileTableEntry : null;
+        if ((mode.equals("w")) && !this.deallocateBlocks(fileTableEntry)) {
+            return null;
+        }
+        else {
+            return fileTableEntry;
+        }
     }
 
     int fsize(FileTableEntry ftEntry){
@@ -97,39 +102,43 @@ public class FileSystem {
 
 
     public int read(FileTableEntry ftEntry, byte[] buffer){
+        if (!ftEntry.mode.equals("w") && !ftEntry.mode.equals("a")) {
 
-        if(ftEntry.mode == "w" || ftEntry.mode == "a" || buffer == null){
-            return -1;
-        }
+            int bufferLength = buffer.length;
+            int trackData = 0;
+            int trackError = -1;
+            int blockSize = Disk.blockSize;
+            int remainingRead = 0;
 
-        int bufferLength = buffer.length;
-        int trackData = 0;
-        int trackError = -1;
-        int blockSize = Disk.blockSize;
-        int remainingRead = 0;
+            synchronized (ftEntry) {
+                while (bufferLength > 0 && ftEntry.seekPtr < fsize(ftEntry)) {
+                    int currentBlock = ftEntry.inode.findBlock(ftEntry.seekPtr);
+                    if (currentBlock == trackError) break;
 
-        synchronized (ftEntry){
-            while(ftEntry.seekPtr < fsize(ftEntry) && bufferLength > 0){
-                int currentBlock = ftEntry.inode.findBlock(ftEntry.seekPtr);
-                if(currentBlock == trackError) break;
+                    byte[] blockData = new byte[blockSize];
+                    SysLib.rawread(currentBlock, blockData);
+                    int offset = ftEntry.seekPtr % blockSize;
+                    int remainingBlocks = blockSize - remainingRead;
+                    int remainingFile = fsize(ftEntry) - ftEntry.seekPtr;
 
-                byte[] blockData = new byte[blockSize];
-                int offset = ftEntry.seekPtr % blockSize;
-                int remainingBlocks = blockSize - remainingRead;
-                int remainingFile = fsize(ftEntry) - ftEntry.seekPtr;
-
-                remainingRead = Math.min(remainingBlocks, remainingFile);
-                System.arraycopy(blockData, offset, buffer, trackData, remainingRead);
-                ftEntry.seekPtr += remainingRead;
-                trackData += remainingRead;
-                bufferLength -= remainingRead;
+                    remainingRead = Math.min(Math.min(remainingBlocks, bufferLength), remainingFile);
+                    System.arraycopy(blockData, offset, buffer, trackData, remainingRead);
+                    ftEntry.seekPtr += remainingRead;
+                    trackData += remainingRead;
+                    bufferLength -= remainingRead;
+                }
+                return trackData;
             }
-            return trackData;
+        }
+        else {
+            return -1;
         }
     }
 
+
+
     public int write(FileTableEntry ftEntry, byte[] buffer){
-        if(ftEntry.mode == "r" || buffer == null) return -1;
+        if(ftEntry.mode.equals("r") || buffer == null) return -1;
 
         synchronized (ftEntry){
 
@@ -146,7 +155,7 @@ public class FileSystem {
                     if(index == -3){
 
                         short freeBlock = (short)superBlock.getFreeBlock();
-                        if(!ftEntry.inode.setIndexBlock(freeBlock)){
+                        if(!ftEntry.inode.registerIndexBlock(freeBlock)){
                             return -1;
                         }
                         else if(ftEntry.inode.setTargetBlock(ftEntry.seekPtr, newBLock) != 0){
@@ -194,7 +203,7 @@ public class FileSystem {
             int offset = 0;
             short blockNum = SysLib.bytes2short(data, offset);
             while(blockNum != -1){
-                superBlock.setFreeBlock(blockNum);
+                superBlock.returnBlock(blockNum);
             }
         }
 
@@ -208,7 +217,7 @@ public class FileSystem {
                 return true;
             }
             if(ftEntry.inode.direct[blockID] != -1){
-                superBlock.setFreeBlock(ftEntry.inode.direct[blockID]);
+                superBlock.returnBlock(ftEntry.inode.direct[blockID]);
                 ftEntry.inode.direct[blockID] = -1;
             }
 

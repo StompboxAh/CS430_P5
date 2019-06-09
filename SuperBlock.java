@@ -35,6 +35,10 @@ public class SuperBlock {
         }
     }
 
+//    public void format(){
+//        format(64);
+//    }
+
     public void format(int blockNum){
 
         inodeBlocks = blockNum;
@@ -49,6 +53,10 @@ public class SuperBlock {
 
         for (int i = freeList; i < totalBlocks; i++) {
             byte[] tempBytes = new byte[BLOCK_SIZE];
+
+            for (int j = 0; j < BLOCK_SIZE; j++) {
+                tempBytes[j] = 0;
+            }
 
             SysLib.int2bytes(i + 1, tempBytes, 0);
             SysLib.rawwrite(i, tempBytes);
@@ -81,7 +89,7 @@ public class SuperBlock {
         return freeBlock;
     }
 
-    public boolean setFreeBlock(int blockNum){
+    public boolean returnBlock(int blockNum){
         if(blockNum < 0){
             return false;
         }

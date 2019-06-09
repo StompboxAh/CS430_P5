@@ -232,9 +232,9 @@ public class Kernel
                         }
                         return ERROR;
                     case FORMAT:  // added in P5
-                        return (fs.format(param) == true) ? OK : ERROR;
+                        return (fs.format(param)) ? OK : ERROR;
                     case DELETE:  // added in P5
-                        return (fs.delete((String) args) == true) ? OK : ERROR;
+                        return (fs.delete((String) args)) ? OK : ERROR;
                 }
                 return ERROR;
             case INTERRUPT_DISK: // Disk interrupts
