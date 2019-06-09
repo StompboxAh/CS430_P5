@@ -14,16 +14,17 @@ public class Inode {
     public short direct[] = new short[directSize]; // direct pointers
     public short indirect;                         // a indirect pointer
 
-    Inode( ) {                                     // a default constructor
+    Inode() {                                     // a default constructor
         length = 0;
         count = 0;
         flag = 1;
-        for ( int i = 0; i < directSize; i++ )
+        for (int i = 0; i < directSize; i++) {
             direct[i] = -1;
+        }
         indirect = -1;
     }
 
-    Inode( short iNumber ) {                       // retrieving inode from disk
+    Inode(short iNumber) {                       // retrieving inode from disk
         int blockNum = 1 + iNumber / 16;
         byte[] blockData = new byte[Disk.blockSize];
         SysLib.rawread(blockNum, blockData);
@@ -45,7 +46,7 @@ public class Inode {
         // todo may need to add offset += 2;
     }
 
-    void toDisk( short iNumber ) {                  // save to disk as the i-th inode
+    void toDisk(short iNumber) {                  // save to disk as the i-th inode
 
         if(iNumber < 0) return;
         byte [] blockData = new byte[iNodeSize];
