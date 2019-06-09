@@ -191,8 +191,28 @@ public class FileSystem {
 
         byte[] data = new byte[Disk.blockSize];
         if(data != null){
-            byte
+            int offset = 0;
+            short blockNum = SysLib.bytes2short(data, offset);
+            while(blockNum != -1){
+                superBlock.setFreeBlock(blockNum);
+            }
+        }
+
+        int blockID = 0;
+        int inodeDirectSize = 11;
+
+        while(true){
+            Inode node = ftEntry.inode;
+            if(blockID >= inodeDirectSize){
+                ftEntry.inode.toDisk(ftEntry.iNumber);
+                return true;
+            }
+            if(ftEntry.inode.direct[blockID] != -1){
+                superBlock.setFreeBlock(ftEntry.inode.direct[blockID]);
+                ftEntry.inode.direct[blockID] = -1;
+            }
+
+            blockID++;
         }
     }
-
 }
