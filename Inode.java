@@ -78,7 +78,7 @@ public class Inode {
         SysLib.rawwrite(blockNumber, newData);
     }
 
-    public boolean setIndexBlock(short blockNum){
+    public boolean registerIndexBlock(short blockNum){
 
         for (int i = 0; i < directSize; i++) {
             if(direct[i] == -1){
@@ -99,7 +99,7 @@ public class Inode {
         return true;
     }
 
-    public int findBlock(int location){
+    public int findTargetBlock(int location){
 
         int target = location / Disk.blockSize;
 
@@ -115,7 +115,7 @@ public class Inode {
         return SysLib.bytes2short(blockData, (target - directSize) * 2);
     }
 
-    int setTargetBlock(int location, short blockNum){
+    int registerTargetBlock(int location, short blockNum){
 
         int index = location / Disk.blockSize;
 
@@ -154,7 +154,7 @@ public class Inode {
         return indirect;
     }
 
-    byte[] deregIndexBlock(){
+    byte[] unregisterIndexBlock(){
         if(indirect >= 0){
             byte[] blockData = new byte[Disk.blockSize];
             SysLib.rawread(indirect, blockData);

@@ -81,7 +81,7 @@ public class SuperBlock {
         return freeBlock;
     }
 
-    public boolean setFreeBlock(int blockNum){
+    public boolean returnBlock(int blockNum){
         if(blockNum < 0){
             return false;
         }
