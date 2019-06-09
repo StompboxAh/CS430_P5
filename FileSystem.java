@@ -79,7 +79,7 @@ public class FileSystem {
 
 
                 case SEEK_CUR:
-                    if(ftEntry.seekPtr + offset <= fsize(ftEntry) && ftEntry + offset > 0){
+                    if(ftEntry.seekPtr + offset <= fsize(ftEntry) && ftEntry.seekPtr + offset > 0){
                         ftEntry.seekPtr += offset;
                         break;
                     }
@@ -176,4 +176,23 @@ public class FileSystem {
             return offset;
         }
     }
+
+    public boolean delete(String name){
+        FileTableEntry ftEntry = open(name, "w");
+
+        if(close(ftEntry) && directory.ifree(ftEntry.iNumber))
+            return true;
+        return false;
+    }
+
+    public boolean deallocateBlocks(FileTableEntry ftEntry){
+        if(ftEntry.inode.count != 1)
+            return false;
+
+        byte[] data = new byte[Disk.blockSize];
+        if(data != null){
+            byte
+        }
+    }
+
 }
