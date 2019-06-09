@@ -32,7 +32,6 @@ public class SuperBlock {
         if(this.totalBlocks != totalBlocks || inodeBlocks <= 0 || freeList < 2){
             this.totalBlocks = totalBlocks;
             format(NUM_OF_INODE_BLOCKS);
-            SysLib.cerr("formatting...");
         }
     }
 
