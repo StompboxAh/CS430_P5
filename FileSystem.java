@@ -1,7 +1,11 @@
-/**
- * Created by
- * Aaron
- * 2019-06-07
+/** FileSystem.java
+ *Name: Jordan Brown and Aaron Hays
+ * Class: CSS 430
+ * Project: P5
+ * Description: This class is used to perform all disk operations. It also instantiates instances of all the other
+ * classes that were written. This file system carries out all of the essential components of a basic
+ * file system such as read, write, delete, etc.
+ *
  */
 
 public class FileSystem {
@@ -14,35 +18,44 @@ public class FileSystem {
     private SuperBlock superBlock;
     private FileTable fileTable;
 
-    public FileSystem(int numBlocks){
 
-        superBlock = new SuperBlock(numBlocks);
-        directory = new Directory(superBlock.inodeBlocks);
-        fileTable = new FileTable(directory);
+    /*---------------------------------Constructor-------------------------------------*/
 
-        FileTableEntry dirEntry = this.open("/", "r");
-        int dirSize = fsize(dirEntry);
+    public FileSystem(int numBlocks){ // takes in desired number of blocks
 
-        if(dirSize > 0){
-            byte[] dirData = new byte[dirSize];
-            read(dirEntry, dirData);
+        superBlock = new SuperBlock(numBlocks); // create superblock with number of blocks
+        directory = new Directory(superBlock.inodeBlocks);  // new directory
+        fileTable = new FileTable(directory);   // new filetable
 
-            directory.bytes2directory(dirData);
+        FileTableEntry dirEntry = this.open("/", "r");  // read root from disk
+        int dirSize = fsize(dirEntry);  // get size of entry
+
+        if(dirSize > 0){    // if directory not empty, get data
+            byte[] dirData = new byte[dirSize]; // new byte array to hold data
+            read(dirEntry, dirData);    // read data into array
+            directory.bytes2directory(dirData); // add to directory
         }
         close(dirEntry);
     }
 
+
+    /*---------------------------------close-------------------------------------*/
+
     public boolean close(FileTableEntry dirEntry) {
-        synchronized (dirEntry){
-            dirEntry.count--;
+        synchronized (dirEntry){ // sync so only one entry at a time can access
+            dirEntry.count--;   // decrement count of users
             if(dirEntry.count > 0) return true;
         }
         return fileTable.ffree(dirEntry);
     }
 
+    /*---------------------------------open-------------------------------------*/
+
     public FileTableEntry open(String fileName, String mode) {
+
         FileTableEntry fileTableEntry = fileTable.falloc(fileName, mode);
 
+        // check if the the entry is in write mode and check if all blocks not allocated
         if ((mode.equals("w")) && !this.deallocateBlocks(fileTableEntry)) {
             return null;
         }
@@ -51,9 +64,12 @@ public class FileSystem {
         }
     }
 
+
+    /*---------------------------------fsize-------------------------------------*/
+
     int fsize(FileTableEntry ftEntry){
         synchronized (ftEntry){
-            return ftEntry.inode.length;
+            return ftEntry.inode.length; // return length of entry inode to get file size
         }
     }
 
@@ -65,44 +81,49 @@ public class FileSystem {
         superBlock.sync();
     }
 
-    public boolean format(int data){
-        while (!fileTable.fempty()) {} //todo do we need this?
-        superBlock.format(data);
-        directory = new Directory(superBlock.inodeBlocks);
-        fileTable = new FileTable(directory);
+    /*---------------------------------format-------------------------------------*/
+
+    public boolean format(int files){
+        superBlock.format(files); // format number of files in superblock
+        directory = new Directory(superBlock.inodeBlocks); // create new directory for files
+        fileTable = new FileTable(directory);   // create filetable to store directory
         return true;
     }
 
+
+    /*---------------------------------format-------------------------------------*/
     public int seek(FileTableEntry ftEntry, int offset, int position){
         synchronized (ftEntry){
             switch (position){
-                case SEEK_SET:
+                case SEEK_SET: // start of file
                     if(offset >= 0 && offset <= fsize(ftEntry)){
-                        ftEntry.seekPtr = offset;
+                        ftEntry.seekPtr = offset; // set ptr to beginning of file
                         break;
                     }
                     return -1;
 
 
-                case SEEK_CUR:
+                case SEEK_CUR: // current seek pos
                     if (ftEntry.seekPtr + offset >= 0 &&
                             ftEntry.seekPtr + offset <= fsize(ftEntry)) {
-                        ftEntry.seekPtr += offset;
+                        ftEntry.seekPtr += offset;  // set to file size + offset
                         break;
                     }
                     return -1;
 
-                case SEEK_END:
+                case SEEK_END: // end of file
                     if (fsize(ftEntry) + offset < 0 ||
                             fsize(ftEntry) + offset > fsize(ftEntry)) {
                         return -1;
                     }
+                    // make seekptr to be at end of file plus offset
                     ftEntry.seekPtr = fsize(ftEntry) + offset;
             }
             return ftEntry.seekPtr;
         }
     }
 
+    /*---------------------------------read-------------------------------------*/
 
     public int read(FileTableEntry ftEntry, byte[] buffer){
         if (!ftEntry.mode.equals("w") && !ftEntry.mode.equals("a")) {
@@ -229,7 +250,6 @@ public class FileSystem {
                 superBlock.returnBlock(ftEntry.inode.direct[blockID]);
                 ftEntry.inode.direct[blockID] = -1;
             }
-
             blockID++;
         }
     }
