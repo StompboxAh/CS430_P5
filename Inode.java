@@ -152,11 +152,6 @@ public class Inode {
         }
     }
 
-    /*-----------------------------findIndexBlock----------------------------*/
-    int findIndexBlock(){
-        return indirect;
-    }
-
     /*--------------------------findTargetBlock------------------------------*/
     public int findTargetBlock(int location){
 
