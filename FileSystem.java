@@ -72,6 +72,16 @@ public class FileSystem {
         }
     }
 
+    /*--------------------------------sync-----------------------------------*/
+    // Syncs the Filesystem back to the disk.
+    // Writes the Directory information to the disk and syncs the SuperBlock
+    public void sync(){
+        FileTableEntry fileTableEntry = open("/", "w");
+        byte[] dirData = directory.directory2bytes();
+        write(fileTableEntry, dirData);
+        close(fileTableEntry);
+        superBlock.sync();
+    }
 
     /*-------------------------------format----------------------------------*/
     // Formats all  contents on the disk and creates new
