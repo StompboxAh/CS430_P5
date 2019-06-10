@@ -229,7 +229,7 @@ public class FileSystem {
     }
 
     /*-------------------------------delete----------------------------------*/
-    //
+    // Delete a file from the system
     public boolean delete(String name){
         FileTableEntry ftEntry = open(name, "w");
         // get inumber of points to the block to be deleted
