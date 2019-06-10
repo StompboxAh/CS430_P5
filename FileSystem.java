@@ -132,7 +132,7 @@ public class FileSystem {
             synchronized (ftEntry) {
                 // read blocks of data and return
                 while (bufferLength > 0 && ftEntry.seekPtr < fsize(ftEntry)) {
-                    int currentBlock = ftEntry.inode.findTargetBlock(ftEntry.seekPtr);
+                    int currentBlock = ftEntry.inode.findBlock(ftEntry.seekPtr);
                     // return if currentblock = -1
                     if (currentBlock == trackError) break;
 
@@ -172,10 +172,10 @@ public class FileSystem {
             int offset = 0;
 
             while(bufferLength > 0){
-                int currentBlock = ftEntry.inode.findTargetBlock(ftEntry.seekPtr);
+                int currentBlock = ftEntry.inode.findBlock(ftEntry.seekPtr);
                 if(currentBlock == -1){
                     short newBlock = (short)superBlock.getFreeBlock();
-                    int index = ftEntry.inode.registerTargetBlock(ftEntry.seekPtr, newBlock);
+                    int index = ftEntry.inode.setTargetBlock(ftEntry.seekPtr, newBlock);
 
                     if(index == -3){ // indirect block unavailable
 
@@ -183,11 +183,11 @@ public class FileSystem {
                         short freeBlock = (short)superBlock.getFreeBlock();
 
                         // return error if free block can't be updated
-                        if(!ftEntry.inode.registerIndexBlock(freeBlock)){
+                        if(!ftEntry.inode.setIndexBlock(freeBlock)){
                             return -1;
                         }
                         // return error if update unsuccessful
-                        if(ftEntry.inode.registerTargetBlock(ftEntry.seekPtr, newBlock) != 0){
+                        if(ftEntry.inode.setTargetBlock(ftEntry.seekPtr, newBlock) != 0){
                             return -1;
                         }
                     }
@@ -244,7 +244,7 @@ public class FileSystem {
         if(ftEntry.inode.count != 1)
             return false;
 
-        byte[] data = ftEntry.inode.unregisterIndexBlock();
+        byte[] data = ftEntry.inode.resetIndexBlock();
         if(data != null){
             int offset = 0;
             short blockNum;
