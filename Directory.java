@@ -1,3 +1,11 @@
+/** Directory.java
+ *Name: Jordan Brown and Aaron Hays
+ * Class: CSS 430
+ * Project: P5
+ * Description: Contains and allows for management of files in ThreadOS.
+ * The arrays fsize and fnames contain the sizes and names of each file.
+ */
+
 public class Directory {
     private static int maxChars = 30; // max characters of each file name
     private static int maxBytes = maxChars * 2; // max bytes of each file name
@@ -6,7 +14,9 @@ public class Directory {
     private int[] fsize;        // each element stores a different file size.
     private char[][] fnames;    // each element stores a different file name.
 
-    public Directory(int maxInumber) { // directory constructor
+    /*---------------------------------Constructor-----------------------------*/
+    // Parameter specifies max number of files in the directory.
+    public Directory(int maxInumber) {
         fsize = new int[maxInumber];     // maxInumber = max files
         for ( int i = 0; i < maxInumber; i++ )
             fsize[i] = 0;                 // all file size initialized to 0
@@ -16,6 +26,8 @@ public class Directory {
         root.getChars( 0, fsize[0], fnames[0], 0 ); // fnames[0] includes "/"
     }
 
+    /*------------------------------bytes2directory--------------------------*/
+    // Populates the directory with a byte array
     public void bytes2directory(byte data[]) {
         // assumes data[] received directory information from disk
         int offset = 0;
@@ -31,11 +43,12 @@ public class Directory {
         }
     }
 
+    /*------------------------------directory2bytes--------------------------*/
+    // Converts and return Directory information into a plain byte array
     public byte[] directory2bytes() {
         int allocatedBytes = fsize.length * 4 + fnames.length;
         byte [] dir = new byte[allocatedBytes * maxBytes];
         int offset = 0;
-        // converts and return Directory information into a plain byte array
         for (int i = 0; i < fsize.length; i++) {
             SysLib.int2bytes(fsize[i], dir, offset);
             offset += 4;
@@ -49,6 +62,8 @@ public class Directory {
         return dir;
     }
 
+    /*----------------------------------ialloc-------------------------------*/
+    // Allocate an empty spot in the directory and returns its inode number
     public short ialloc(String filename) {
         // filename is the one of a file to be created.
         for (short i = 0; i < fsize.length; i++) {
@@ -63,6 +78,7 @@ public class Directory {
         return -1;
     }
 
+    /*-----------------------------------ifree-------------------------------*/
     // Check if file is found at iNumber's location and deallocate it
     public boolean ifree(short iNumber) {
         if(iNumber < maxChars && fsize[iNumber] > 0) {
@@ -74,6 +90,7 @@ public class Directory {
         }
     }
 
+    /*-----------------------------------namei-------------------------------*/
     // Returns the inumber corresponding to this filename
     public short namei(String filename) {
         for (short i = 0; i < fsize.length; i++){

@@ -1,3 +1,10 @@
+/** FileTable.java
+ *Name: Jordan Brown and Aaron Hays
+ * Class: CSS 430
+ * Project: P5
+ * Description: FileTable holds a set of FileTableEntries in a vector.
+ */
+
 import java.util.Vector;
 
 public class FileTable {
@@ -5,23 +12,26 @@ public class FileTable {
     private Vector table;         // the actual entity of this file table
     private Directory dir;        // the root directory
 
-    public FileTable(Directory directory) { // constructor
+    /*----------------------------Constructor--------------------------------*/
+    public FileTable(Directory directory) {
         table = new Vector( );     // instantiate a file (structure) table
         dir = directory;           // receive a reference to the Director
     }                             // from the file system
 
-    // major public methods
+    /*------------------------------falloc-----------------------------------*/
+    // Allocate a new file (structure) table entry for this file name
     public synchronized FileTableEntry falloc(String filename, String mode) {
-        Inode inode = null;
+        Inode inode;
         short inumber;
         while (true) {
-            if (filename.equals("/")) {
+            if (filename.equals("/")) { // root directory
                 inumber = 0;
             }
             else {
                 inumber = dir.namei(filename);
             }
 
+            // invalid inumber
             if (inumber < 0) {
                 if (mode.equals("r")){
                     return null;
@@ -58,19 +68,21 @@ public class FileTable {
             break;
         }
 
+        // increment this inode's count
         inode.count++;
+        // immediately write back this inode to the disk
         inode.toDisk(inumber);
+        // allocate/retrieve and register the corresponding inode using dir
         FileTableEntry entry = new FileTableEntry(inode, inumber, mode);
         table.addElement(entry);
-        return entry;
-        // allocate a new file (structure) table entry for this file name
-        // allocate/retrieve and register the corresponding inode using dir
-        // increment this inode's count
-        // immediately write back this inode to the disk
         // return a reference to this file (structure) table entry
+        return entry;
     }
 
+    /*------------------------------ffree------------------------------------*/
+    // Frees a FileTableEntry in the FileTable and writes back the file to disk
     public synchronized boolean ffree(FileTableEntry e) {
+        // check if the entry is in the table
         if (table.removeElement(e)) {
             e.inode.count--;
             if (e.inode.flag == 1 || e.inode.flag == 2){
@@ -80,18 +92,17 @@ public class FileTable {
                 e.inode.flag = 3;
             }
 
+            // save the corresponding inode to the disk
             e.inode.toDisk(e.iNumber);
             notify();
             return true;
         }
         return false;
-        // receive a file table entry reference
-        // save the corresponding inode to the disk
-        // free this file table entry.
-        // return true if this file table entry found in my table
     }
 
+    /*------------------------------fempty-----------------------------------*/
+    // Check if the table is empty. Should be called before starting a format.
     public synchronized boolean fempty() {
-        return table.isEmpty( );  // return if table is empty
-    }                            // should be called before starting a format
+        return table.isEmpty( );
+    }
 }

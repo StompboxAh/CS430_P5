@@ -3,11 +3,9 @@
  * Class: CSS 430
  * Project: P5
  * Description: This class is used to perform all disk operations.
- * It also instantiates instances of all the other
- * classes that were written. This file system carries out
- * all of the essential components of a basic
+ * It also instantiates instances of all the other classes that were written.
+ * This file system carries out all of the essential components of a basic
  * file system such as read, write, delete, etc.
- *
  */
 
 public class FileSystem {
@@ -21,9 +19,10 @@ public class FileSystem {
     private FileTable fileTable;
 
 
-    /*---------------------------------Constructor-------------------------------------*/
-
-    public FileSystem(int numBlocks){ // takes in desired number of blocks
+    /*----------------------------Constructor--------------------------------*/
+    // Takes in desired number of blocks as parameter.
+    // Creates SuperBlock, Directory, and FileTable
+    public FileSystem(int numBlocks){
 
         superBlock = new SuperBlock(numBlocks); // create superblock with number of blocks
         directory = new Directory(superBlock.inodeBlocks);  // new directory
@@ -40,19 +39,8 @@ public class FileSystem {
         close(dirEntry);
     }
 
-
-    /*---------------------------------close-------------------------------------*/
-
-    public boolean close(FileTableEntry dirEntry) {
-        synchronized (dirEntry){ // sync so only one entry at a time can access
-            dirEntry.count--;   // decrement count of users
-            if(dirEntry.count > 0) return true;
-        }
-        return fileTable.ffree(dirEntry);
-    }
-
-    /*---------------------------------open-------------------------------------*/
-
+    /*--------------------------------open-----------------------------------*/
+    // Opens a file of the specified fileName
     public FileTableEntry open(String fileName, String mode) {
 
         FileTableEntry fileTableEntry = fileTable.falloc(fileName, mode);
@@ -66,15 +54,27 @@ public class FileSystem {
         }
     }
 
+    /*-------------------------------close-----------------------------------*/
+    // Closes a file of the specified fileName
+    public boolean close(FileTableEntry dirEntry) {
+        synchronized (dirEntry){ // sync so only one entry at a time can access
+            dirEntry.count--;   // decrement count of users
+            if(dirEntry.count > 0) return true;
+        }
+        return fileTable.ffree(dirEntry);
+    }
 
-    /*---------------------------------fsize-------------------------------------*/
-
+    /*-------------------------------fsize-----------------------------------*/
+    // Return length of entry inode to get file size
     int fsize(FileTableEntry ftEntry){
         synchronized (ftEntry){
-            return ftEntry.inode.length; // return length of entry inode to get file size
+            return ftEntry.inode.length;
         }
     }
 
+    /*--------------------------------sync-----------------------------------*/
+    // Syncs the Filesystem back to the disk.
+    // Writes the Directory information to the disk and syncs the SuperBlock
     public void sync(){
         FileTableEntry fileTableEntry = open("/", "w");
         byte[] dirData = directory.directory2bytes();
@@ -83,8 +83,9 @@ public class FileSystem {
         superBlock.sync();
     }
 
-    /*---------------------------------format-------------------------------------*/
-
+    /*-------------------------------format----------------------------------*/
+    // Formats all  contents on the disk and creates new
+    // SuperBlock, Directory, and FileTable
     public boolean format(int files){
         superBlock.format(files); // format number of files in superblock
         directory = new Directory(superBlock.inodeBlocks); // create new directory for files
@@ -93,7 +94,8 @@ public class FileSystem {
     }
 
 
-    /*---------------------------------format-------------------------------------*/
+    /*--------------------------------seek-----------------------------------*/
+    // Updates the sync pointer of a FileTableEntry
     public int seek(FileTableEntry ftEntry, int offset, int position){
         synchronized (ftEntry){
             switch (position){
@@ -125,11 +127,11 @@ public class FileSystem {
         }
     }
 
-    /*---------------------------------read-------------------------------------*/
-
+    /*--------------------------------read-----------------------------------*/
+    // Reads a FileTableEntry into the passed buffer
     public int read(FileTableEntry ftEntry, byte[] buffer){
 
-        // check mode for write or append
+        // ensure that we are not in write or append mode
         if (!ftEntry.mode.equals("w") && !ftEntry.mode.equals("a")) {
 
             int bufferLength = buffer.length;
@@ -137,21 +139,24 @@ public class FileSystem {
             int trackError = -1;
             int blockSize = Disk.blockSize;
 
-            // synchronize this section so only one entry at a time can be read
             synchronized (ftEntry) {
                 // read blocks of data and return
                 while (bufferLength > 0 && ftEntry.seekPtr < fsize(ftEntry)) {
                     int currentBlock = ftEntry.inode.findTargetBlock(ftEntry.seekPtr);
-                    if (currentBlock == trackError) break; // return if currentblock = -1
+                    // return if currentblock = -1
+                    if (currentBlock == trackError) break;
 
                     byte[] blockData = new byte[blockSize];
                     SysLib.rawread(currentBlock, blockData);
+
                     int offset = ftEntry.seekPtr % blockSize;
                     int remainingBlocks = blockSize - offset;
                     int remainingFile = fsize(ftEntry) - ftEntry.seekPtr;
                     // set remainingRead to the smallest between the three vars
                     int remainingRead = Math.min(Math.min(remainingBlocks, bufferLength), remainingFile);
+
                     System.arraycopy(blockData, offset, buffer, trackData, remainingRead);
+
                     ftEntry.seekPtr += remainingRead; // set seekptr to next point in the array
                     trackData += remainingRead; // add read data to trackdata
                     bufferLength -= remainingRead; // reduce buffer length
@@ -164,11 +169,10 @@ public class FileSystem {
         }
     }
 
-
-    /*---------------------------------write-------------------------------------*/
-
+    /*-------------------------------write-----------------------------------*/
+    // Writes the contents of buffer to the requested FileTableEntry
     public int write(FileTableEntry ftEntry, byte[] buffer){
-
+        // ensure that we are not in read mode
         if(ftEntry.mode.equals("r") || buffer == null) return -1;
 
         synchronized (ftEntry){
@@ -214,10 +218,12 @@ public class FileSystem {
                 int newSeekPtr = ftEntry.seekPtr % blockSize;
                 // end of data, so as to not overwrite
                 int remaining = blockSize - newSeekPtr;
+
                 int position = Math.min(remaining, bufferLength);
                 System.arraycopy(buffer, offset, blockData, newSeekPtr, position);
                 SysLib.rawwrite(currentBlock, blockData);
-                // update seekptr to new location
+
+                // update variables to continue writing next iteration
                 ftEntry.seekPtr += position;
                 bufferLength -= position;
                 offset += position;
@@ -232,8 +238,8 @@ public class FileSystem {
         }
     }
 
-    /*---------------------------------delete-------------------------------------*/
-
+    /*-------------------------------delete----------------------------------*/
+    //
     public boolean delete(String name){
         FileTableEntry ftEntry = open(name, "w");
         // get inumber of points to the block to be deleted
@@ -242,9 +248,8 @@ public class FileSystem {
         return false;
     }
 
-    /*---------------------------------deallocateBlocks-------------------------------------*/
-
-
+    /*--------------------------deallocateBlocks-----------------------------*/
+    // Deallocates all the blocks that ftEntry contains pointers to
     public boolean deallocateBlocks(FileTableEntry ftEntry){
         if(ftEntry.inode.count != 1)
             return false;

@@ -1,21 +1,25 @@
-/**
- * Created by
- * Aaron
- * 2019-06-07
+/** Inode.java
+ *Name: Jordan Brown and Aaron Hays
+ * Class: CSS 430
+ * Project: P5
+ * Description: Inodes describe and files. Each Inode corresponds to a file
+ * and contains information such as file size, number of file table entries
+ * pointing to the file, and whether the file is used or unused.
  */
+
 
 public class Inode {
     private final static int iNodeSize = 32;       // fix to 32 bytes
     private final static int directSize = 11;      // # direct pointers
 
     public int length;                             // file size in bytes
-    public short count;                            // # file-table entries pointing to this
+    public short count;                // # file-table entries pointing to this
     public short flag;                             // 0 = unused, 1 = used, ...
     public short direct[] = new short[directSize]; // direct pointers
     public short indirect;                         // a indirect pointer
 
 
-    /*----------------default constructor--------------------*/
+    /*------------------------default constructor----------------------------*/
     Inode() {
         length = 0;
         count = 0;
@@ -26,8 +30,9 @@ public class Inode {
         indirect = -1;
     }
 
-    /*-----------------constructor with param-----------------*/
-    Inode(short iNumber) {                       // retrieving inode from disk
+    /*------------------------constructor with param-------------------------*/
+    // retrieving inode from disk
+    Inode(short iNumber) {
 
         // get number of blocks and allocate storage
         int blockNum = 1 + iNumber / 16;
@@ -52,7 +57,8 @@ public class Inode {
     }
 
     /*---------------------------------toDisk-------------------------------------*/
-    void toDisk(short iNumber) {                  // save to disk as the i-th inode
+    // save to disk as the i-th inode
+    void toDisk(short iNumber) {
 
         if(iNumber < 0) return;
         byte [] blockData = new byte[iNodeSize];
@@ -83,8 +89,7 @@ public class Inode {
         SysLib.rawwrite(blockNumber, newData);
     }
 
-
-    /*---------------------------------registerIndexBlock-------------------------------------*/
+    /*-------------------------registerIndexBlock----------------------------*/
     public boolean registerIndexBlock(short blockNum){
 
         for (int i = 0; i < directSize; i++) {
@@ -107,26 +112,7 @@ public class Inode {
         return true;
     }
 
-
-    /*---------------------------------findTargetBlock-------------------------------------*/
-    public int findTargetBlock(int location){
-
-        int target = location / Disk.blockSize;
-
-        if(target < directSize){ // check if still in direct blocks
-            return direct[target];
-        }
-        else if(indirect < 0){
-            return -1;
-        }
-
-        byte[] blockData = new byte[Disk.blockSize];
-        //get number of indirect blocks begin pointed to
-        SysLib.rawread(indirect, blockData);
-        return SysLib.bytes2short(blockData, (target - directSize) * 2); // change offset val to bytes
-    }
-
-    /*---------------------------------registerTargetBlock-------------------------------------*/
+    /*-------------------------registerTargetBlock---------------------------*/
     int registerTargetBlock(int location, short blockNum){
 
         // index decides how far into the block to go
@@ -137,7 +123,7 @@ public class Inode {
                 return -1;
             }
             else if (index > 0 && direct[index - 1] == -1) { // last location not valid
-                 return -2;
+                return -2;
             }
             else {
                 direct[index] = blockNum; // set block in direct to current blockNum
@@ -166,13 +152,30 @@ public class Inode {
         }
     }
 
-    /*---------------------------------findIndexBlock-------------------------------------*/
+    /*-----------------------------findIndexBlock----------------------------*/
     int findIndexBlock(){
         return indirect;
     }
 
+    /*--------------------------findTargetBlock------------------------------*/
+    public int findTargetBlock(int location){
 
-    /*---------------------------------unregisterIndexBlock-------------------------------------*/
+        int target = location / Disk.blockSize;
+
+        if(target < directSize){ // check if still in direct blocks
+            return direct[target];
+        }
+        else if(indirect < 0){
+            return -1;
+        }
+
+        byte[] blockData = new byte[Disk.blockSize];
+        //get number of indirect blocks begin pointed to
+        SysLib.rawread(indirect, blockData);
+        return SysLib.bytes2short(blockData, (target - directSize) * 2);
+    }
+
+    /*------------------------unregisterIndexBlock---------------------------*/
     byte[] unregisterIndexBlock(){
         if(indirect >= 0){
             byte[] blockData = new byte[Disk.blockSize];

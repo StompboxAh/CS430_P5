@@ -4,8 +4,6 @@
  * Project: P5
  * Description: The SuperBlock is a file containing metadata of the filesystem.
  * It is represented on-disk as block 0
- *
- *
  */
 
 public class SuperBlock {
