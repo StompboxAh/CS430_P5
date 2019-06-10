@@ -2,8 +2,10 @@
  *Name: Jordan Brown and Aaron Hays
  * Class: CSS 430
  * Project: P5
- * Description: This class is used to perform all disk operations. It also instantiates instances of all the other
- * classes that were written. This file system carries out all of the essential components of a basic
+ * Description: This class is used to perform all disk operations.
+ * It also instantiates instances of all the other
+ * classes that were written. This file system carries out
+ * all of the essential components of a basic
  * file system such as read, write, delete, etc.
  *
  */
@@ -126,6 +128,8 @@ public class FileSystem {
     /*---------------------------------read-------------------------------------*/
 
     public int read(FileTableEntry ftEntry, byte[] buffer){
+
+        // check mode for write or append
         if (!ftEntry.mode.equals("w") && !ftEntry.mode.equals("a")) {
 
             int bufferLength = buffer.length;
@@ -133,22 +137,24 @@ public class FileSystem {
             int trackError = -1;
             int blockSize = Disk.blockSize;
 
+            // synchronize this section so only one entry at a time can be read
             synchronized (ftEntry) {
+                // read blocks of data and return
                 while (bufferLength > 0 && ftEntry.seekPtr < fsize(ftEntry)) {
                     int currentBlock = ftEntry.inode.findTargetBlock(ftEntry.seekPtr);
-                    if (currentBlock == trackError) break;
+                    if (currentBlock == trackError) break; // return if currentblock = -1
 
                     byte[] blockData = new byte[blockSize];
                     SysLib.rawread(currentBlock, blockData);
                     int offset = ftEntry.seekPtr % blockSize;
                     int remainingBlocks = blockSize - offset;
                     int remainingFile = fsize(ftEntry) - ftEntry.seekPtr;
-
+                    // set remainingRead to the smallest between the three vars
                     int remainingRead = Math.min(Math.min(remainingBlocks, bufferLength), remainingFile);
                     System.arraycopy(blockData, offset, buffer, trackData, remainingRead);
-                    ftEntry.seekPtr += remainingRead;
-                    trackData += remainingRead;
-                    bufferLength -= remainingRead;
+                    ftEntry.seekPtr += remainingRead; // set seekptr to next point in the array
+                    trackData += remainingRead; // add read data to trackdata
+                    bufferLength -= remainingRead; // reduce buffer length
                 }
                 return trackData;
             }
@@ -159,8 +165,10 @@ public class FileSystem {
     }
 
 
+    /*---------------------------------write-------------------------------------*/
 
     public int write(FileTableEntry ftEntry, byte[] buffer){
+
         if(ftEntry.mode.equals("r") || buffer == null) return -1;
 
         synchronized (ftEntry){
@@ -175,18 +183,21 @@ public class FileSystem {
                     short newBlock = (short)superBlock.getFreeBlock();
                     int index = ftEntry.inode.registerTargetBlock(ftEntry.seekPtr, newBlock);
 
-                    if(index == -3){
+                    if(index == -3){ // indirect block unavailable
 
+                        // find available free block
                         short freeBlock = (short)superBlock.getFreeBlock();
+
+                        // return error if free block can't be updated
                         if(!ftEntry.inode.registerIndexBlock(freeBlock)){
                             return -1;
                         }
-
+                        // return error if update unsuccessful
                         if(ftEntry.inode.registerTargetBlock(ftEntry.seekPtr, newBlock) != 0){
                             return -1;
                         }
                     }
-
+                    // if index is not valid
                     if(index == -2 || index == -1){
                         return -1;
                     }
@@ -199,11 +210,14 @@ public class FileSystem {
                     System.exit(2);
                 }
 
+                // point to new beginning of data
                 int newSeekPtr = ftEntry.seekPtr % blockSize;
+                // end of data, so as to not overwrite
                 int remaining = blockSize - newSeekPtr;
                 int position = Math.min(remaining, bufferLength);
                 System.arraycopy(buffer, offset, blockData, newSeekPtr, position);
                 SysLib.rawwrite(currentBlock, blockData);
+                // update seekptr to new location
                 ftEntry.seekPtr += position;
                 bufferLength -= position;
                 offset += position;
@@ -212,18 +226,24 @@ public class FileSystem {
                     ftEntry.inode.length = ftEntry.seekPtr;
                 }
             }
+            // update inode
             ftEntry.inode.toDisk(ftEntry.iNumber);
             return offset;
         }
     }
 
+    /*---------------------------------delete-------------------------------------*/
+
     public boolean delete(String name){
         FileTableEntry ftEntry = open(name, "w");
-
+        // get inumber of points to the block to be deleted
         if(close(ftEntry) && directory.ifree(ftEntry.iNumber))
             return true;
         return false;
     }
+
+    /*---------------------------------deallocateBlocks-------------------------------------*/
+
 
     public boolean deallocateBlocks(FileTableEntry ftEntry){
         if(ftEntry.inode.count != 1)
